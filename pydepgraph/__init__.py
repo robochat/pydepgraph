@@ -22,6 +22,7 @@
 """
 
 import dircache
+import re
 import sys
 import os
 import colorsys
@@ -244,7 +245,7 @@ def compute_list(path, additional_path="", exclude=None, recursive=True):
         sys.stderr.write("Warning: cannot open path %s.\n" % complete_path)
         return [], []
     for name in list_:
-        if name.startswith(".") or name in exclude:
+        if name.startswith(".") or re.match(exclude, name):
             continue
 
         partial_name = os.path.join(additional_path, name)
@@ -337,8 +338,11 @@ def build_graph(files):
                     if adjust(name) not in [x for x in graph[file_display]]:
                         graph[file_display].append(adjust(name))
             elif "from" == line[0]:
-                if adjust(line[1]) not in [x for x in graph[file_display]]:
-                    graph[file_display].append(adjust(line[1]))
+                module = line[1]
+                if line[3].lower() == line[3]:
+                    module += '.%s' % line[3]
+                if adjust(module) not in [x for x in graph[file_display]]:
+                    graph[file_display].append(adjust(module))
     return graph
 
 
@@ -451,7 +455,7 @@ def do_graph(paths,
     autoclusters = []
     for path in paths:
         tmp_files, tmp_autoclusters = compute_list(path,
-                                                   exclude=exclude,
+                                                   exclude=re.compile('|'.join(exclude)),
                                                    recursive=recursive)
         files += tmp_files
         autoclusters += tmp_autoclusters
