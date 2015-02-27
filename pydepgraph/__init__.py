@@ -328,7 +328,7 @@ def build_graph(files):
         file_display = adjust(file_)
         graph[file_display] = []
         for line in content.split("\n"):
-            line = line.split()
+            line = line.strip().split()
             if "import" not in line:
                 continue
             if "import" == line[0]:
@@ -339,6 +339,8 @@ def build_graph(files):
                         graph[file_display].append(adjust(name))
             elif "from" == line[0]:
                 module = line[1]
+                if module == '.':
+                    module = '.'.join(file_display.split('.')[:-1])
                 if line[3].lower() == line[3]:
                     module += '.%s' % line[3]
                 if adjust(module) not in [x for x in graph[file_display]]:
