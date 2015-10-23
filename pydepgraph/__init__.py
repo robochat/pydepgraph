@@ -220,15 +220,16 @@ def cat(package, name):
         return "%s.%s" % (package, name)
 
 
-def module_path(name):
+def module_path(name, package=False):
     """Return package name formatted as path.
     
-    name (str): a python package name.
+    name (str): a python package/module name.
+    package (bool): whether name is package and module.
     
     return (str): name formatted as a path.
     
     """
-    return name.replace(".","/")+".py"
+    return name.replace(".","/")+("" if package else ".py")
 
 ## File searching functions. ##
 
@@ -275,35 +276,36 @@ def compute_list(path, additional_path="", exclude=None, recursive=True):
 
 
 def is_relative_import(path,relpath,name):
-    """Checks whether the module is a relative import.
+    """Checks whether a module is a relative import.
     
     path (str): path of file importing the module
+    relpath (str): any additional path to append.
     name (str): name of imported module.
     
     return (bool)
     
     """
     trialpath = os.path.join(path,relpath,module_path(name))
-    return os.path.exists(trialpath)
-
-
-def explicit_import_name(path,relpath,name):
-    """Checks whether the module is a relative import. If it is then the
-    explicit package name for a module (rather than the relative package
-    name). This is useful for relative imports within packages so that 
-    they are correctly entered in the graph.
+    res= os.path.isfile(trialpath)
+    if res==False:
+        trialpath2 = os.path.join(path,relpath,module_path(name,package=True))
+        res = os.path.isdir(trialpath2)
+    return res
+    
+def is_package(path,relpath,name):
+    """Checks whether a module is a package. This doesn't worked with gzipped
+    packages though.
     
     path (str): path of file importing the module
+    relpath (str): any additional path to append.
     name (str): name of imported module.
     
-    return (str): explicit python package name
+    return (bool)
     
     """
-    if is_relative_import(path,relpath,name):
-        name = os.path.join(relpath,module_path(name))
-        #Is this the correct path in the general case?
-        #or look for __init__ files in path, limited by root path, to find true package name?
-    return adjust(name)
+    trialpath = os.path.join(path,relpath,module_path(name,package=True))
+    return os.path.isdir(trialpath)
+    
 
 ## Graph creation functions. ##
 
@@ -377,17 +379,31 @@ def build_graph(files):
                 tmp = " ".join(line[1:]).split(",")
                 for name in tmp:
                     name = name.strip().split(" ")[0]
-                    name = explicit_import_name(path,relpath,name)
+                    if is_relative_import(path,relpath,name):
+                        name = cat(file_display.rsplit('.',1)[0],name)
+                    name = adjust(name)
                     if name not in [x for x in graph[file_display]]:
                         graph[file_display].append(name)
             elif "from" == line[0]:
                 module = line[1]
                 if module == '.':
                     module = '.'.join(file_display.split('.')[:-1])
-                if line[3].lower() == line[3]:
-                    module += '.%s' % line[3]
-                if adjust(module) not in [x for x in graph[file_display]]:
-                    graph[file_display].append(adjust(module))
+                if is_relative_import(path,relpath,module):
+                    module = cat(file_display.rsplit('.',1)[0],module)
+                if is_package(path,"",module):
+                    tmp = " ".join(line[3:]).split(",")
+                    for name in tmp:
+                        name = name.strip().split(" ")[0]
+                        name = cat(module,name)
+                        if os.path.isfile(os.path.join(path,module_path(name))):
+                            if name not in [x for x in graph[file_display]]:
+                                graph[file_display].append(name)
+                        else: #add package directly if any imported items are not modules.
+                            if adjust(module) not in [x for x in graph[file_display]]:
+                                graph[file_display].append(adjust(module))
+                else:
+                    if adjust(module) not in [x for x in graph[file_display]]:
+                        graph[file_display].append(adjust(module))
     return graph
 
 
