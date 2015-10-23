@@ -220,6 +220,16 @@ def cat(package, name):
         return "%s.%s" % (package, name)
 
 
+def module_path(name):
+    """Return package name formatted as path.
+    
+    name (str): a python package name.
+    
+    return (str): name formatted as a path.
+    
+    """
+    return name.replace(".","/")+".py"
+
 ## File searching functions. ##
 
 def compute_list(path, additional_path="", exclude=None, recursive=True):
@@ -263,6 +273,37 @@ def compute_list(path, additional_path="", exclude=None, recursive=True):
 
     return ret, clusters
 
+
+def is_relative_import(path,relpath,name):
+    """Checks whether the module is a relative import.
+    
+    path (str): path of file importing the module
+    name (str): name of imported module.
+    
+    return (bool)
+    
+    """
+    trialpath = os.path.join(path,relpath,module_path(name))
+    return os.path.exists(trialpath)
+
+
+def explicit_import_name(path,relpath,name):
+    """Checks whether the module is a relative import. If it is then the
+    explicit package name for a module (rather than the relative package
+    name). This is useful for relative imports within packages so that 
+    they are correctly entered in the graph.
+    
+    path (str): path of file importing the module
+    name (str): name of imported module.
+    
+    return (str): explicit python package name
+    
+    """
+    if is_relative_import(path,relpath,name):
+        name = os.path.join(relpath,module_path(name))
+        #Is this the correct path in the general case?
+        #or look for __init__ files in path, limited by root path, to find true package name?
+    return adjust(name)
 
 ## Graph creation functions. ##
 
@@ -327,6 +368,7 @@ def build_graph(files):
         content = open(os.path.join(path, file_)).read().replace("\\\n", "")
         file_display = adjust(file_)
         graph[file_display] = []
+        relpath = os.path.dirname(file_)
         for line in content.split("\n"):
             line = line.strip().split()
             if "import" not in line:
@@ -335,8 +377,9 @@ def build_graph(files):
                 tmp = " ".join(line[1:]).split(",")
                 for name in tmp:
                     name = name.strip().split(" ")[0]
-                    if adjust(name) not in [x for x in graph[file_display]]:
-                        graph[file_display].append(adjust(name))
+                    name = explicit_import_name(path,relpath,name)
+                    if name not in [x for x in graph[file_display]]:
+                        graph[file_display].append(name)
             elif "from" == line[0]:
                 module = line[1]
                 if module == '.':
