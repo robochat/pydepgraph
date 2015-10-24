@@ -34,6 +34,8 @@ DRAW_MODES = ["NO_CLUSTERS",
               "ONLY_CLUSTERS",
               "ONLY_CLUSTERS_WITH_SELF_EDGES"]
 
+reNone = "^(?!x)x"  #This regex should never match anything and so can be used as a null.
+
 
 ## Color hashing functions. ##
 
@@ -239,14 +241,14 @@ def compute_list(path, additional_path="", exclude=None, recursive=True):
     whose name is in exclude (and recurring if recursive is True).
 
     path (str): starting path to check.
-    exclude ([str]): list of directory of file names to exclude.
+    exclude ([str]): regular expression of file names to exclude.
     recursive (bool): whether we descend into subdirectories.
 
     return ([str], [str]): a list of Python files and of clusters.
 
     """
     if exclude is None:
-        exclude = []
+        exclude = [reNone]
     ret = []
     clusters = [(adjust(additional_path), path)]
     complete_path = os.path.join(path, additional_path)
@@ -291,7 +293,8 @@ def is_relative_import(path,relpath,name):
         trialpath2 = os.path.join(path,relpath,module_path(name,package=True))
         res = os.path.isdir(trialpath2)
     return res
-    
+
+
 def is_package(path,relpath,name):
     """Checks whether a module is a package. This doesn't worked with gzipped
     packages though.
@@ -504,14 +507,14 @@ def do_graph(paths,
     """Main function.
 
     paths ([str]): list of paths to analyze.
-    exclude ([str]): list of directory or file names to exclude.
+    exclude ([str]): list of directory or file names to exclude (allows for regexes).
     clusters ([str]): list of clusters.
     draw_mode (str): how to draw the graph (see DRAW_MODES).
     recursive (bool): whether we want to analyze subdirectories.
 
     """
     if exclude is None:
-        exclude = []
+        exclude = [reNone]
     files = []
     autoclusters = []
     for path in paths:
@@ -525,7 +528,7 @@ def do_graph(paths,
     else:
         clusters = [(x, "") for x in clusters]
     clusters.sort()
-
+    
     graph = build_graph(files)
 
     if draw_mode in ["NO_CLUSTERS", "CLUSTERS"]:
@@ -559,7 +562,7 @@ def main():
     parser.add_argument("-p", "--path", default=".",
                         help="comma separated list of paths to include")
     parser.add_argument("-e", "--exclude",
-                        help="comma separated list of paths to exclude")
+                        help="comma separated list of directory or file names to exclude (allows for regexes)")
     parser.add_argument("-c", "--clusters",
                         help="comma separated list of clusters")
     parser.add_argument("-r", "--no-recursive", action="store_true",
