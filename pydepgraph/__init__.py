@@ -241,14 +241,14 @@ def compute_list(path, additional_path="", exclude=None, recursive=True):
     whose name is in exclude (and recurring if recursive is True).
 
     path (str): starting path to check.
-    exclude ([str]): regular expression of file names to exclude.
+    exclude (str): regular expression of file names to exclude.
     recursive (bool): whether we descend into subdirectories.
 
     return ([str], [str]): a list of Python files and of clusters.
 
     """
     if exclude is None:
-        exclude = [reNone]
+        exclude = reNone
     ret = []
     clusters = [(adjust(additional_path), path)]
     complete_path = os.path.join(path, additional_path)
